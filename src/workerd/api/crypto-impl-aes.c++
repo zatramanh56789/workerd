@@ -485,19 +485,21 @@ protected:
 
     process(&cipher, data.slice(0, inputSizePart1), counter, result.asPtr());
 
-    // Zero the counter bits of the block. Chromium creates a copy but we own our buffer.
+    // Zero the counter bits of the block. This is needed as counter is a reference and points to
+    // the same data as the counter array in JS.
+    kj::Array<kj::byte> zeroed_counter = kj::heapArray(counter.asPtr());
     {
       KJ_DASSERT(counterBitLength / 8 <= expectedCounterByteSize);
 
       auto remainder = counterBitLength % 8;
       auto idx = expectedCounterByteSize - counterBitLength / 8;
-      memset(counter.begin() + idx, 0, counterBitLength / 8);
+      memset(zeroed_counter.begin() + idx, 0, counterBitLength / 8);
       if (remainder) {
-        counter[idx - 1] &= 0xFF << remainder;
+        zeroed_counter[idx - 1] &= 0xFF << remainder;
       }
     }
 
-    process(&cipher, data.slice(inputSizePart1, data.size()), counter, result.slice(
+    process(&cipher, data.slice(inputSizePart1, data.size()), zeroed_counter, result.slice(
         inputSizePart1, result.size()));
 
     return result.releaseAsArray();
@@ -537,9 +539,8 @@ private:
     auto previous = counterToProcess[0];
     counterToProcess[0] &= ~(0xFF << remainderBits);
     KJ_DEFER(counterToProcess[0] = previous);
-    // We temporarily modify the counter to construct the BIGNUM & this undoes it. It's a safe
-    // operation because we own the buffer. Technically the restoration isn't even strictly
-    // necessary because this buffer isn't used any more after this.
+    // We temporarily modify the counter to construct the BIGNUM & this undoes it.
+    // TODO: Note that we do not own the buffer – is this still safe?
 
     JSG_REQUIRE(result.get() == BN_bin2bn(counterToProcess.begin(), counterToProcess.size(),
         result.get()), InternalDOMOperationError, "Error doing ", getAlgorithmName(),
