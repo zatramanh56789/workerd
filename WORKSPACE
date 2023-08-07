@@ -220,12 +220,23 @@ http_archive(
     ],
 )
 
-load("@rules_rust//rust:repositories.bzl", "rules_rust_dependencies", "rust_register_toolchains")
+load("@rules_rust//rust:repositories.bzl", "rules_rust_dependencies", "rust_repository_set")
 
 rules_rust_dependencies()
 
-rust_register_toolchains(
+rust_repository_set(
+    name = "rust_darwin_x86_64_cross",
     edition = "2018",
+    exec_triple = "aarch64-apple-darwin",
+    extra_target_triples = ["x86_64-apple-darwin"],
+    versions = ["1.66.0"],
+)
+
+rust_repository_set(
+    name = "rust_darwin_aarch64_cross",
+    edition = "2018",
+    exec_triple = "x86_64-apple-darwin",
+    extra_target_triples = ["aarch64-apple-darwin"],
     versions = ["1.66.0"],
 )
 
@@ -322,6 +333,8 @@ http_archive(
         "//:patches/v8/0010-Implement-Promise-Context-Tagging.patch",
         "//:patches/v8/0011-Enable-V8-shared-linkage.patch",
         "//:patches/v8/0012-Fix-ICU-build.patch",
+        # TODO: Make this configurable
+        "//:patches/v8/0013-Support-cross-compilation-again.patch",
     ],
     strip_prefix = "v8-v8-97c6f93",
     type = "tgz",

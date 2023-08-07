@@ -14,6 +14,21 @@ cc_capnp_library(
     defines = [ "WORKERD_ICU_DATA_EMBED" ],
 )
 
+platform(
+    name = "apple_x86",
+    constraint_values = [
+        "@platforms//os:macos",
+        "@platforms//cpu:x86_64",
+    ],
+)
+
+platform(
+    name = "apple_arm64",
+    constraint_values = [
+        "@platforms//os:macos",
+        "@platforms//cpu:arm64",
+    ],
+)
 npm_link_all_packages(name = "node_modules")
 
 npm_link_package(
@@ -52,6 +67,16 @@ bool_flag(
 config_setting(
     name = "set_dead_strip",
     flag_values = {"dead_strip": "True"},
+)
+
+bool_flag(
+    name = "cross_compile",
+    build_setting_default = False,
+)
+
+config_setting(
+    name = "is_cross_compile",
+    flag_values = {"cross_compile": "True"},
 )
 
 # Workaround for bazel not supporting negated conditions (https://github.com/bazelbuild/bazel-skylib/issues/272)

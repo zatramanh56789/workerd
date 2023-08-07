@@ -82,6 +82,12 @@ filegroup(
         ] if date else []),
         target_compatible_with = select({
             "@platforms//os:windows": ["@platforms//:incompatible"],
+            # Do not compile api encoder when cross-compiling, it's only needed indirectly for type
+            # generation. There are no technical problems with it, but we'd need to recompile much
+            # of the code base for the host platform which would greatly increase compile time.
+            # is_cross_compile is not a platform, but having a flag for this allows us to
+            # cross-compile on several platforms.
+            "//:is_cross_compile": ["@platforms//:incompatible"],
             "//conditions:default": [],
         }),
         tool = "api_encoder_bin",
