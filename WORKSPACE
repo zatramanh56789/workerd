@@ -208,13 +208,16 @@ http_archive(
     ],
 )
 
-load("@rules_rust//rust:repositories.bzl", "rules_rust_dependencies", "rust_register_toolchains")
+load("@rules_rust//rust:repositories.bzl", "rules_rust_dependencies", "rust_repository_set")
 
 rules_rust_dependencies()
 
-rust_register_toolchains(
+rust_repository_set(
+    name = "rust_darwin_x86_64_cross",
     edition = "2018",
-    versions = ["1.66.0"],
+    exec_triple = "aarch64-apple-darwin",
+    extra_target_triples = ["x86_64-apple-darwin"],
+    versions = ["1.67.0"],
 )
 
 load("@rules_rust//crate_universe:repositories.bzl", "crate_universe_dependencies")
@@ -311,6 +314,7 @@ git_repository(
         "//:patches/v8/0010-Implement-Promise-Context-Tagging.patch",
         "//:patches/v8/0011-Enable-V8-shared-linkage.patch",
         "//:patches/v8/0012-Fix-ICU-build.patch",
+        "//:patches/v8/0013-Support-cross-compilation-again.patch",
     ],
     remote = "https://chromium.googlesource.com/v8/v8.git",
     shallow_since = "1690276460 +0000",

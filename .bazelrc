@@ -127,3 +127,19 @@ build:windows --cxxopt='/DWINDOWS_LEAN_AND_MEAN' --host_cxxopt='/DWINDOWS_LEAN_A
 # The `/std:c++14` argument is unused during boringssl compilation and we don't
 # want a warning when compiling each file.
 build:windows --cxxopt='-Wno-unused-command-line-argument' --host_cxxopt='-Wno-unused-command-line-argument'
+
+#
+# Cross-Compilation
+# So far, only cross-compiling on macOS between ARM and x86 is supported.
+#
+
+# We build quite a bit in the host cfg when cross-compiling, speed that up a bit.
+build:macos-cross --host_compilation_mode=fastbuild
+# basic cross-compilation options
+build:macos-cross --macos_cpus=x86_64,arm64
+
+# Define the actual target platform.
+build:macos-cross-x86_64 --cpu=darwin_x86_64 --host_cpu=darwin_arm64 --platforms //:apple_x86
+build:macos-cross-arm64 --cpu=darwin_arm64 --host_cpu=darwin_x86_64 --platforms //:mac_arm64
+build:macos-cross-x86_64 --config=macos-cross
+build:macos-cross-arm64 --config=macos-cross

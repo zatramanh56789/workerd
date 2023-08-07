@@ -1,0 +1,46 @@
+From 94b5de943c63d914cf8f8a9fd21408abe1e5212e Mon Sep 17 00:00:00 2001
+From: Felix Hanau <felix@cloudflare.com>
+Date: Mon, 7 Aug 2023 20:17:12 -0400
+Subject: Support cross-compilation again
+
+Cross compilation is not possible based on the target cfg patch, this patch effectively reverts it (sans torque cleanup and related changes)
+
+Change-Id: Iac0913719a8820743a29c8c70e9295367d2c1a93
+---
+ bazel/defs.bzl | 13 +++++--------
+ 1 file changed, 5 insertions(+), 8 deletions(-)
+
+diff --git a/bazel/defs.bzl b/bazel/defs.bzl
+index f28d04b0f5a670b9356a8499da5876f6743e4484..631d824a846cea217baa26d333bfd5cd5d8439fe 100644
+--- a/bazel/defs.bzl
++++ b/bazel/defs.bzl
+@@ -340,7 +340,7 @@ def get_cfg():
+     # are resolved before select() can be resolved based on the command line. This could
+     # alternatively be done by defining build targets and the rules used to declare them twice
+     # (once for exec and for target).
+-    return "target"
++    return "exec"
+ 
+ def _torque_outputs_impl(ctx):
+     if ctx.workspace_name == "v8":
+@@ -510,16 +510,13 @@ _v8_mksnapshot = rule(
+             cfg = get_cfg(),
+         ),
+         "target_os": attr.string(mandatory = True),
+-        # "_allowlist_function_transition": attr.label(
+-        #     default = "@bazel_tools//tools/allowlists/function_transition_allowlist",
+-        # ),
++        "_allowlist_function_transition": attr.label(
++            default = "@bazel_tools//tools/allowlists/function_transition_allowlist",
++        ),
+         "prefix": attr.string(mandatory = True),
+         "suffix": attr.string(mandatory = True),
+     },
+-    # This allows specifying a CPU architecture on the command line to be used when compiling
+-    # mksnapshot. Disable this functionality as we do not use it and it makes cfg changes more
+-    # difficult.
+-    # cfg = v8_target_cpu_transition,
++    cfg = v8_target_cpu_transition,
+ )
+ 
+ def v8_mksnapshot(name, args, suffix = ""):
