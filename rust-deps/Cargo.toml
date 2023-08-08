@@ -11,28 +11,24 @@
 [package]
 name = "rust-deps"
 version = "0.0.0"
-authors = ["Vitali Lovich <vlovich@cloudflare.com>", "Aaron Loyd <aloyd@cloudflare.com"]
+authors = ["Vitali Lovich <vlovich@cloudflare.com>", "Aaron Loyd <aloyd@cloudflare.com", "Felix Hanau <felix@cloudflare.com>"]
 edition = "2018"
 
 [lib]
 crate-type = ["staticlib"]
 
 [dependencies]
-anyhow = "1"
-libc = "0.2"
-lolhtml = { path = "DEPS_LOL_HTML/c-api" }
-
-[dependencies.addr2line]
-version = "0.14"
-default-features = false
-features = ["std", "rustc-demangle", "cpp_demangle", "fallible-iterator", "smallvec"]
+lolhtml = {git = "https://github.com/cloudflare/lol-html.git", rev = "7967765ff8db27000845ba0a0a9a025ac908a043"}
 
 [profile.dev.package."*"]
 opt-level = 1
 
 [profile.dev]
 panic = "abort"
+debug-assertions=false
+debug = "none"
+overflow-checks = false
 
 [profile.release]
 panic = "abort"
-lto = true
+codegen-units=1

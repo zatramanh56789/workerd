@@ -73,6 +73,15 @@ crates_vendor(
     generate_target_compatible_with = False,
 )
 
+cc_import(
+    name = "rust-deps-cargo",
+    static_library = "target/aarch64-unknown-linux-gnu/debug/librust_deps.a",
+    # If alwayslink is turned on, the library will be forcely linked into any binary that depends
+    # on it.
+    # alwayslink = 1,
+    visibility = ["//visibility:public"],
+)
+
 rust_static_library(
     name = "rust-deps",
     srcs = ["src/lib.rs"],

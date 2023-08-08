@@ -402,7 +402,7 @@ new_local_repository(
     build_file_content = """cc_library(
         name = "lolhtml",
         hdrs = ["@workerd//rust-deps:lol_html_api"],
-        deps = ["@workerd//rust-deps"],
+        deps = ["@workerd//rust-deps:rust-deps-cargo"],
         strip_include_prefix = "/",
         visibility = ["//visibility:public"],)""",
     path = "empty",
