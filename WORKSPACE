@@ -407,3 +407,7 @@ new_local_repository(
         visibility = ["//visibility:public"],)""",
     path = "empty",
 )
+
+register_toolchains(
+    "//toolchain:aarch64_toolchain2",
+)
