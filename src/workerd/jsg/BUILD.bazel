@@ -24,6 +24,7 @@ wd_cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":exception",
+        ":macro-meta",
         ":modules_capnp",
         ":observer",
         "//src/workerd/util",
@@ -70,14 +71,23 @@ npm_package(
 )
 
 wd_cc_library(
+    name = "macro-meta",
+    hdrs = ["macro-meta.h"],
+    visibility = ["//visibility:public"],
+     deps = [
+         "@capnp-cpp//src/kj",
+     ],
+)
+
+wd_cc_library(
     name = "rtti",
     hdrs = ["rtti.h"],
     visibility = ["//visibility:public"],
     deps = [
         ":rtti_capnp",
         ":jsg",
-        # todo: move text encoding out
-        "@capnp-cpp//src/capnp:capnpc",
+        # todo: move text encoding out – what does that actually mean?
+        # "@capnp-cpp//src/capnp:capnpc",
     ],
 )
 
@@ -108,6 +118,7 @@ wd_cc_library(
         # defined below
         "resource-test.c++",
         "rtti-test.c++",
+        "macro-meta-test.c++",
     ],
 )]
 
@@ -140,4 +151,9 @@ kj_test(
         ":jsg",
         ":resource_test_capnp",
     ],
+)
+
+kj_test(
+    src = "macro-meta-test.c++",
+    deps = [":macro-meta"],
 )

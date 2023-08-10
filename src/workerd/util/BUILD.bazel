@@ -51,10 +51,10 @@ wd_cc_library(
 wd_cc_library(
     name = "test-util",
     srcs = ["capnp-mock.c++"],
-    hdrs = glob(["capnp-mock.h"]),
+    hdrs = ["capnp-mock.h"],
     visibility = ["//visibility:public"],
     deps = [
-        "@capnp-cpp//src/capnp:capnpc",
+        "@capnp-cpp//src/capnp:capnp",
     ],
 )
 
