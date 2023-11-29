@@ -33,11 +33,11 @@ selects.config_setting_group(
 # current malloc in use
 wd_cc_library(
     name = "malloc",
+    visibility = ["//visibility:public"],
     deps = select({
         ":really_use_tcmalloc": ["@com_google_tcmalloc//tcmalloc"],
         "//conditions:default": ["@bazel_tools//tools/cpp:malloc"],
     }),
-    visibility = ["//visibility:public"],
 )
 
 wd_cc_binary(
@@ -47,15 +47,26 @@ wd_cc_binary(
     tags = ["no-arm64"],
     visibility = ["//visibility:public"],
     deps = [
-        "//src/workerd/util:autogate",
         ":server",
         ":workerd-meta_capnp",
         ":workerd_capnp",
+        "//src/workerd/util:autogate",
         "@capnp-cpp//src/capnp:capnpc",
     ] + select({
         "@platforms//os:windows": [],
         "//conditions:default": ["@workerd//src/workerd/util:symbolizer"],
     }),
+)
+
+wd_cc_binary(
+    name = "voodoo",
+    srcs = ["voodoo.c++"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@capnp-cpp//src/kj:kj-async",
+        "@dawn",
+        "@dawn//:dawn_wire",
+    ],
 )
 
 wd_cc_library(

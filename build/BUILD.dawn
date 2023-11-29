@@ -1066,7 +1066,6 @@ cc_library(
         "include/dawn/wire/WireServer.h",
         "include/dawn/wire/dawn_wire_export.h",
     ],
-    copts = COPTS,
     includes = [
         "include",
         "src",
