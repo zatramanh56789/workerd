@@ -5,6 +5,7 @@
 // This server interacts directly with the GPU, and listens on a UNIX socket for clients
 // of the Dawn Wire protocol.
 
+#include "voodoo-pipe.h"
 #include <dawn/dawn_proc.h>
 #include <dawn/native/DawnNative.h>
 #include <dawn/webgpu_cpp.h>
@@ -87,11 +88,8 @@ public:
     }
   }
 
-  kj::Promise<void> handleConnection(kj::Own<kj::AsyncIoStream>&& stream) {
-    // make the coroutine lazy, so that a promise is always returned and
-    // it is managed by the taskset
+  kj::Promise<void> handleConnection(kj::Own<kj::AsyncIoStream> stream) {
     co_await kj::Promise<void>(kj::READY_NOW);
-
     KJ_DBG("handling connection");
 
     // setup wire
@@ -101,12 +99,13 @@ public:
         .procs = &nativeProcs,
     };
 
-    // TODO: this calls GetMaximumAllocationSize() immediately which currently throws
-    // but the "not implemented" message is lost.
     auto wireServer = kj::heap<dawn::wire::WireServer>(wDesc);
-
     wireServer->InjectInstance(instance.Get(), 1, 0);
 
+    Pipe<4096> _wbuf;
+    auto c = _wbuf.cap();
+    KJ_DBG(c, stream);
+    auto t = co_await _wbuf.readFromStream(stream, 10);
     KJ_DBG("all done");
     KJ_UNIMPLEMENTED();
   }

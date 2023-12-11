@@ -60,7 +60,10 @@ wd_cc_binary(
 
 wd_cc_binary(
     name = "voodoo",
-    srcs = ["voodoo.c++"],
+    srcs = [
+        "voodoo.c++",
+        "voodoo-pipe.h",
+    ],
     visibility = ["//visibility:public"],
     deps = [
         "@capnp-cpp//src/kj:kj-async",
