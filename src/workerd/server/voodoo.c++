@@ -15,6 +15,9 @@
 #include <kj/main.h>
 #include <unistd.h>
 
+// dawn buffer sizes
+#define DAWNCMD_MAX (4096 * 32)
+
 struct DawnRemoteSerializer : public dawn::wire::CommandSerializer {
   void* GetCmdSpace(size_t size) override {
     KJ_UNIMPLEMENTED();
@@ -23,7 +26,8 @@ struct DawnRemoteSerializer : public dawn::wire::CommandSerializer {
     KJ_UNIMPLEMENTED();
   };
   size_t GetMaximumAllocationSize() const override {
-    KJ_UNIMPLEMENTED();
+    KJ_DBG("GetMaximumAllocationSize() was called");
+    return DAWNCMD_MAX;
   };
 };
 
