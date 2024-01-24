@@ -24,6 +24,13 @@
 #include <workerd/util/use-perfetto-categories.h>
 #include <workerd/util/uncaught-exception-source.h>
 
+double performanceNow();
+
+// TODO: Debug tests compilation
+__attribute__((weak)) __attribute__((used)) double performanceNow() {
+  return workerd::api::dateNow();
+}
+
 namespace workerd::api {
 
 namespace {
@@ -709,10 +716,15 @@ jsg::Promise<jsg::Ref<Response>> ServiceWorkerGlobalScope::fetch(
   return fetchImpl(js, kj::none, kj::mv(requestOrUrl), kj::mv(requestInit));
 }
 
-double Performance::now() {
+double Performance::now(CompatibilityFlags::Reader flags) {
+  // Currently we don't actually enable the monotonic timer – call the new performanceNow even when
+  // the compat flag is not enabled.
+  //if (flags.getPerformanceNowMonotonic()) {
+  return performanceNow();
+  //}
   // We define performance.now() for compatibility purposes, but due to spectre concerns it
   // returns exactly what Date.now() returns.
-  return dateNow();
+  //return dateNow();
 }
 
 #ifdef WORKERD_EXPERIMENTAL_ENABLE_WEBGPU

@@ -3,6 +3,13 @@
 //     https://opensource.org/licenses/Apache-2.0
 
 #include "v8-platform-impl.h"
+#include "workerd/api/util.h"
+
+double performanceNow() {
+  // We define performance.now() for compatibility purposes, but due to spectre concerns it
+  // returns exactly what Date.now() returns.
+  return workerd::api::dateNow();
+}
 
 namespace workerd::server {
 

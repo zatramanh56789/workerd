@@ -1,6 +1,7 @@
 load("//:build/kj_test.bzl", "kj_test")
 load("//:build/wd_cc_benchmark.bzl", "wd_cc_benchmark")
 load("//:build/wd_cc_library.bzl", "wd_cc_library")
+load("//:build/wd_test.bzl", "wd_test")
 
 wd_cc_library(
     name = "bench-tools",
@@ -77,3 +78,13 @@ wd_cc_benchmark(
         ":test-fixture",
     ],
 )
+
+# TODO
+[wd_test(
+    src = f,
+    args = ["--experimental"],
+    data = [f.removesuffix(".wd-test") + ".js"],
+    tags = ["off-by-default"],
+) for f in glob(
+    ["**/*.wd-test"],
+)]
