@@ -526,6 +526,9 @@ public:
   // Access the event loop's current time point. This will remain constant between ticks.
   kj::Date now();
 
+  // Log an invocation of the timer and return the current invocation count.
+  uint64_t clockRead();
+
   // Returns a promise that resolves once `now() >= when`.
   kj::Promise<void> atTime(kj::Date when) { return getIoChannelFactory().getTimer().atTime(when); }
 

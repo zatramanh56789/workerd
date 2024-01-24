@@ -96,7 +96,7 @@ public:
   // anyway, for Spectre reasons -- it returns the same as Date.now().
   double getTimeOrigin() { return 0.0; }
 
-  double now();
+  double now(CompatibilityFlags::Reader flags);
 
   JSG_RESOURCE_TYPE(Performance) {
     JSG_READONLY_INSTANCE_PROPERTY(timeOrigin, getTimeOrigin);

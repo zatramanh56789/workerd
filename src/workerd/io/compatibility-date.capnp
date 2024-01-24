@@ -367,4 +367,10 @@ struct CompatibilityFlags @0x8f8c1b68151b6cef {
       $compatDisableFlag("global_importscripts")
       $compatEnableDate("2024-03-04");
   # Removes the non-implemented importScripts() function from the global scope.
+
+  performanceNowMonotonic @41 :Bool
+      $compatEnableFlag("performance_now_monotonic")
+      $experimental;
+  # performance.now() returns a monotonically increasing clock that is updated independently of I/O
+  # operations.
 }

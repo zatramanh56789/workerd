@@ -709,9 +709,10 @@ jsg::Promise<jsg::Ref<Response>> ServiceWorkerGlobalScope::fetch(
   return fetchImpl(js, kj::none, kj::mv(requestOrUrl), kj::mv(requestInit));
 }
 
-double Performance::now() {
+double Performance::now(CompatibilityFlags::Reader flags) {
   // We define performance.now() for compatibility purposes, but due to spectre concerns it
   // returns exactly what Date.now() returns.
+  // Currently we don't actually enable the monotonic timer – compat flag is unused for now.
   return dateNow();
 }
 
