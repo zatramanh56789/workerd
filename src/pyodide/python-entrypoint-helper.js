@@ -85,11 +85,22 @@ async function setupPackages(pyodide) {
   const requirements = MetadataReader.getRequirements().map(
     canonicalizePackageName,
   );
-  const transitiveRequirements = new Set(
-    Array.from(await getTransitiveRequirements(pyodide, requirements)).map(
-      canonicalizePackageName,
-    ),
-  );
+
+  let transiteRequirements = [];
+  try {
+    transitiveRequirements = new Set(
+      Array.from(await getTransitiveRequirements(pyodide, requirements)).map(
+        canonicalizePackageName,
+      ),
+    );
+  } catch (e) {
+    if (e.message.includes("No known package")) {
+      e.message +=
+        ". \nIt appears that a package you requested is not available yet on workerd. \n" +
+        "If you would like this package to be included, please open an issue at TODO.";
+    }
+    throw e;
+  }
 
   mountLib(pyodide, transitiveRequirements, IS_WORKERD);
 
