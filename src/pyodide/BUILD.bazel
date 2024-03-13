@@ -80,48 +80,13 @@ copy_file(
 # pyodide.asm.js patches
 # TODO: all of these should be fixed by linking our own Pyodide or by upstreaming.
 
-PRELUDE = """
-import { newWasmModule, monotonicDateNow, wasmInstantiate, getRandomValues } from "pyodide-internal:builtin_wrappers";
-
-// Pyodide uses `new URL(some_url, location)` to resolve the path in `loadPackage`. Setting
-// `location = undefined` makes this throw an error if some_url is not an absolute url. Which is what
-// we want here, it doesn't make sense to load a package from a relative URL.
-const location = undefined;
-
-function addEventListener(){}
-"""
-
 REPLACEMENTS = [
-    [
-        # Convert pyodide.asm.js into an es6 module.
-        # When we link our own we can pass `-sES6_MODULE` to the linker and it will do this for us
-        # automatically.
-        "var _createPyodideModule",
-        PRELUDE + "export const _createPyodideModule",
-    ],
-    [
-        "globalThis._createPyodideModule = _createPyodideModule;",
-        "",
-    ],
-    [
-        "new WebAssembly.Module",
-        "newWasmModule",
-    ],
-    [
-        "WebAssembly.instantiate",
-        "wasmInstantiate",
-    ],
-    [
-        "Date.now",
-        "monotonicDateNow",
-    ],
     [
         "crypto.getRandomValues",
         "getRandomValues"
     ],
     [
         # Expose recursiveDependencies for use in setupPackages
-        # TODO: upstream this.
         'o(Ct,"recursiveDependencies");',
         'o(Ct,"recursiveDependencies");API.recursiveDependencies=Ct;'
     ]
