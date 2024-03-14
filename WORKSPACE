@@ -113,9 +113,9 @@ http_archive(
 http_archive(
     name = "pyodide",
     build_file = "//:build/BUILD.pyodide",
-    sha256 = "065d514f545d35b1fcee4a7a9f8bb2cdd32457a2d3fb765733697de172a6561e",
+    sha256 = "308c5699702dbb92a5a040398b99b07b0323967f232b6cc2fe313e849748e5cb",
     type = "tar.bz2",
-    urls = ["https://github.com/cloudflare/pyodide-build-scripts/releases/download/v4/pyodide-asm.tar.bz2"],
+    urls = ["https://github.com/cloudflare/pyodide-build-scripts/releases/download/v5/pyodide-asm.tar.bz2"],
 )
 
 http_archive(
