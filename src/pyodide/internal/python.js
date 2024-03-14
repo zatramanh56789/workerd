@@ -218,10 +218,10 @@ async function instantiateEmscriptenModule(emscriptenSettings) {
     // removed =(
     // If/when we link our own Pyodide we can remove this.
     globalThis.window = {}; // makes ENVIRONMENT_IS_WEB    = true
-    globalThis.importScripts = 1; // makes ENVIRONMENT_IS_WORKER = false
+    globalThis.importScripts = 1;
+    globalThis.navigator = { userAgent: "Safari" };
     const p = createPyodideModule(emscriptenSettings);
     delete globalThis.window;
-    delete globalThis.importScripts;
     const emscriptenModule = await p;
     return emscriptenModule;
   } catch (e) {
