@@ -77,21 +77,6 @@ copy_file(
     out = "generated/pyodide-lock.json",
 )
 
-# pyodide.asm.js patches
-# TODO: all of these should be fixed by linking our own Pyodide or by upstreaming.
-
-REPLACEMENTS = [
-    [
-        "crypto.getRandomValues",
-        "getRandomValues"
-    ],
-    [
-        # Expose recursiveDependencies for use in setupPackages
-        'o(Ct,"recursiveDependencies");',
-        'o(Ct,"recursiveDependencies");API.recursiveDependencies=Ct;'
-    ]
-]
-
 load("//:build/pyodide_bucket.bzl", "PYODIDE_PACKAGE_BUCKET_URL")
 
 PYODIDE_BUCKET_MODULE = json.encode({
@@ -104,11 +89,10 @@ write_file(
     content = [PYODIDE_BUCKET_MODULE],
 )
 
-expand_template(
+copy_file(
     name = "pyodide.asm.js@rule",
     out = "generated/pyodide.asm.js",
-    substitutions = dict(REPLACEMENTS),
-    template = "@pyodide//:pyodide/pyodide.asm.js",
+    src = "@pyodide//:pyodide/pyodide.asm.js",
 )
 
 wd_js_bundle(
