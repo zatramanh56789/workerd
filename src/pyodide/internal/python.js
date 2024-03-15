@@ -222,6 +222,8 @@ async function instantiateEmscriptenModule(emscriptenSettings) {
     globalThis.navigator = { userAgent: "Safari" };
     const p = createPyodideModule(emscriptenSettings);
     delete globalThis.window;
+    delete globalThis.importScripts;
+    delete globalThis.navigator;
     const emscriptenModule = await p;
     return emscriptenModule;
   } catch (e) {
