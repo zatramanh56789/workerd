@@ -1,4 +1,5 @@
 import { default as UnsafeEval } from "internal:unsafe-eval";
+import { DSO_METADATA } from "pyodide-internal:metadata";
 
 let lastTime;
 let lastDelta = 0;
@@ -33,6 +34,11 @@ export function getRandomValues(arr) {
     }
     throw e;
   }
+}
+
+export function patchedGetMemory(path) {
+  DSO_METADATA.loadedLibs.push(path);
+  return DSO_METADATA[path].metadataPtr;
 }
 
 /**

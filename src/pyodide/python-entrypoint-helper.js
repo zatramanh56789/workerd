@@ -1,7 +1,11 @@
 // This file is a BUILTIN module that provides the actual implementation for the
 // python-entrypoint.js USER module.
 
-import { loadPyodide, uploadArtifacts, getMemoryToUpload } from "pyodide-internal:python";
+import {
+  getMemoryToUpload,
+  loadPyodide,
+  uploadArtifacts,
+} from "pyodide-internal:python";
 import { enterJaegerSpan } from "pyodide-internal:jaeger";
 import {
   REQUIREMENTS,
@@ -109,23 +113,30 @@ function getMainModule() {
     mainModulePromise = (async function () {
       const pyodide = await getPyodide();
       await setupPackages(pyodide);
-      return enterJaegerSpan("pyimport_main_module", () => pyimportMainModule(pyodide));
+      return enterJaegerSpan("pyimport_main_module", () =>
+        pyimportMainModule(pyodide),
+      );
     })();
     return mainModulePromise;
   });
 }
 
-// Do not setup anything to do with Python in the global scope when tracing. The Jaeger tracing
-// needs to be called inside an IO context.
-if (!IS_TRACING) {
-  if (IS_WORKERD) {
-    // If we're in workerd, we have to do setupPackages in the IoContext, so don't start it yet.
-    // TODO: fix this.
-    await getPyodide();
-  } else {
-    // If we're not in workerd, setupPackages doesn't require IO so we can do it all here.
-    await getMainModule();
+try {
+  // Do not setup anything to do with Python in the global scope when tracing. The Jaeger tracing
+  // needs to be called inside an IO context.
+  if (!IS_TRACING) {
+    if (IS_WORKERD) {
+      // If we're in workerd, we have to do setupPackages in the IoContext, so don't start it yet.
+      // TODO: fix this.
+      await getPyodide();
+    } else {
+      // If we're not in workerd, setupPackages doesn't require IO so we can do it all here.
+      await getMainModule();
+    }
   }
+} catch (e) {
+  console.warn(e);
+  throw e;
 }
 
 /**

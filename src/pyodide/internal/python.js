@@ -10,7 +10,10 @@ import {
 } from "pyodide-internal:setupPackages";
 import { default as TarReader } from "pyodide-internal:packages_tar_reader";
 import processScriptImports from "pyodide-internal:process_script_imports.py";
-import { BUNDLE_MEMORY_SNAPSHOT } from "pyodide-internal:metadata";
+import {
+  BUNDLE_MEMORY_SNAPSHOT,
+  DSO_METADATA,
+} from "pyodide-internal:metadata";
 
 /**
  * This file is a simplified version of the Pyodide loader:
@@ -38,7 +41,8 @@ import pyodideWasmModule from "pyodide-internal:generated/pyodide.asm.wasm";
  */
 import stdlib from "pyodide-internal:generated/python_stdlib.zip";
 
-const SHOULD_UPLOAD_SNAPSHOT = ArtifactBundler.isEnabled() || ArtifactBundler.isEwValidating();
+const SHOULD_UPLOAD_SNAPSHOT =
+  ArtifactBundler.isEnabled() || ArtifactBundler.isEwValidating();
 const DEDICATED_SNAPSHOT = true;
 
 /**
@@ -48,10 +52,6 @@ const DEDICATED_SNAPSHOT = true;
  * it.
  */
 let MEMORY = undefined;
-/**
- * Record the dlopen handles that are needed by the MEMORY.
- */
-let DSO_METADATA = {};
 
 /**
  * Used to defer artifact upload. This is set during initialisation, but is executed during a
@@ -174,29 +174,76 @@ function loadDynlib(Module, path, wasmModuleData) {
   }
 }
 
+function getLEB(binary) {
+  let offset = 0;
+  let ret = 0;
+  let mul = 1;
+  while (1) {
+    const byte = binary[offset++];
+    ret += (byte & 0x7f) * mul;
+    mul *= 0x80;
+    if (!(byte & 0x80)) break;
+  }
+  return [ret, offset];
+}
+
+function getDylinkMetadata(Module, contentsOffset) {
+  const view = new Uint8Array(12);
+  TarReader.read(contentsOffset, view);
+  if (new Uint32Array(view.buffer)[0] !== 0x6d736100) {
+    throw new Error("Invalid wasm magic number");
+  }
+  if (view[8] !== 0) {
+    throw new Error("First section should be the dylink section");
+  }
+  const [length, offset] = getLEB(view.subarray(9));
+  const totalSize = 9 + offset + length;
+  const metadataBuffer = new Uint8Array(totalSize);
+  TarReader.read(contentsOffset, metadataBuffer);
+  return Module.getDylinkMetadata(metadataBuffer);
+}
+
 /**
- * This loads all dynamic libraries visible in the site-packages directory. They
- * are loaded before the runtime is initialized outside of the heap, using the
- * same mechanism for DT_NEEDED libs (i.e., the libs that are loaded before the
- * program starts because you passed them as linker args).
+ * This preallocates space for the metadata for all dynamic libraries visible in
+ * the site-packages directory. The metadata space is reserved in an arena the
+ * outside of the heap, using the same mechanism for DT_NEEDED libs (i.e., the
+ * libs that are loaded before the program starts because you passed them as
+ * linker args).
  *
- * Currently, we pessimistically preload all libs. It would be nice to only load
- * the ones that are used. I am pretty sure we can manage this by reserving a
- * separate shared lib metadata arena at startup and allocating shared libs
- * there.
+ * We won't necessarily ever load all of these libraries, but we need their
+ * metadata to have a stable location so that the memory snapshot will work
+ * correctly.
  */
-function preloadDynamicLibs(Module) {
+function preallocateDynamicLibMetadata(Module) {
   try {
     const sitePackages = getSitePackagesPath(Module);
+    const moduleNodes = {};
     for (const soFile of SITE_PACKAGES_SO_FILES) {
       let node = SITE_PACKAGES_INFO;
       for (const part of soFile) {
         node = node.children.get(part);
       }
-      const { contentsOffset, size } = node;
+      const path = sitePackages + "/" + soFile.join("/");
+      moduleNodes[path] = node;
+      const { contentsOffset } = node;
+      const metadata = getDylinkMetadata(Module, contentsOffset);
+      const memAlign = Math.pow(2, metadata.memoryAlign);
+      const ptr = Module.alignMemory(
+        Module.getMemory(metadata.memorySize + memAlign),
+        memAlign,
+      );
+      if (!(path in DSO_METADATA)) {
+        DSO_METADATA[path] = {};
+      }
+      DSO_METADATA[path].metadataPtr = ptr;
+    }
+    // Make sure to copy list first b/c loadDynlib sticks another copy of the
+    // lib into the list causing an infinite loop if we're not careful.
+    const toLoad = Array.from(DSO_METADATA.loadedLibs);
+    for (const path of toLoad) {
+      const { contentsOffset, size } = moduleNodes[path];
       const wasmModuleData = new Uint8Array(size);
       TarReader.read(contentsOffset, wasmModuleData);
-      const path = sitePackages + "/" + soFile.join("/");
       loadDynlib(Module, path, wasmModuleData);
     }
   } catch (e) {
@@ -232,7 +279,7 @@ function getEmscriptenSettings(lockfile, indexURL) {
     // preRun hook to set up the file system before running main
     // The preRun hook gets run independently of noInitialRun, which is
     // important because the file system lives outside of linear memory.
-    preRun: [prepareFileSystem, setEnv, preloadDynamicLibs],
+    preRun: [prepareFileSystem, setEnv, preallocateDynamicLibMetadata],
     instantiateWasm,
     noInitialRun: !!MEMORY, // skip running main() if we have a snapshot
     API, // Pyodide requires we pass this in.
@@ -305,19 +352,20 @@ async function prepareWasmLinearMemory(Module) {
  * crash if we dlsym the handle after restoring from the snapshot
  */
 function recordDsoHandles(Module) {
-  const dylinkInfo = {};
   for (const [handle, { name }] of Object.entries(
     Module.LDSO.loadedLibsByHandle,
   )) {
     if (handle === 0) {
       continue;
     }
-    if (!(name in dylinkInfo)) {
-      dylinkInfo[name] = { handles: [] };
+    if (!(name in DSO_METADATA)) {
+      DSO_METADATA[name] = {};
     }
-    dylinkInfo[name].handles.push(handle);
+    if (!("handles" in DSO_METADATA[name])) {
+      DSO_METADATA[name].handles = [];
+    }
+    DSO_METADATA[name].handles.push(handle);
   }
-  return dylinkInfo;
 }
 
 // This is the list of all packages imported by the Python bootstrap. We don't
@@ -392,8 +440,8 @@ function memorySnapshotDoImports(Module) {
  */
 function makeLinearMemorySnapshot(Module) {
   memorySnapshotDoImports(Module);
-  const dsoJSON = recordDsoHandles(Module);
-  return encodeSnapshot(Module.HEAP8, dsoJSON);
+  recordDsoHandles(Module);
+  return encodeSnapshot(Module.HEAP8, DSO_METADATA);
 }
 
 function setUploadFunction(toUpload) {
@@ -419,20 +467,23 @@ function setUploadFunction(toUpload) {
   };
 }
 
+const SNAPSHOT_VERSION = 1;
+
 /**
  * Encode heap and dsoJSON into the memory snapshot artifact that we'll upload
  */
 function encodeSnapshot(heap, dsoJSON) {
   const dsoString = JSON.stringify(dsoJSON);
-  let sx = 8 + 2 * dsoString.length;
+  let sx = 3 * 4 + 2 * dsoString.length;
   // align to 8 bytes
   sx = Math.ceil(sx / 8) * 8;
   const toUpload = new Uint8Array(sx + heap.length);
   const encoder = new TextEncoder();
   const { written } = encoder.encodeInto(dsoString, toUpload.subarray(8));
   const uint32View = new Uint32Array(toUpload.buffer);
-  uint32View[0] = sx;
-  uint32View[1] = written;
+  uint32View[0] = SNAPSHOT_VERSION;
+  uint32View[1] = sx;
+  uint32View[2] = written;
   toUpload.subarray(sx).set(heap);
   return toUpload;
 }
@@ -442,10 +493,11 @@ function encodeSnapshot(heap, dsoJSON) {
  */
 function decodeSnapshot(memorySnapshot) {
   const uint32View = new Uint32Array(memorySnapshot);
-  const snapshotOffset = uint32View[0];
-  const jsonLength = uint32View[1];
+  const snapshotVersion = uint32View[0];
+  const snapshotOffset = uint32View[1];
+  const jsonLength = uint32View[2];
   const jsonView = new Uint8Array(memorySnapshot, 8, jsonLength);
-  DSO_METADATA = JSON.parse(new TextDecoder().decode(jsonView));
+  Object.assign(DSO_METADATA, JSON.parse(new TextDecoder().decode(jsonView)));
   MEMORY = new Uint8Array(memorySnapshot, snapshotOffset);
 }
 
@@ -492,7 +544,8 @@ function simpleRunPython(emscriptenModule, code) {
 let TEST_SNAPSHOT = undefined;
 (function () {
   // Lookup memory snapshot from artifact store.
-  const memorySnapshot = BUNDLE_MEMORY_SNAPSHOT || ArtifactBundler.getMemorySnapshot();
+  const memorySnapshot =
+    BUNDLE_MEMORY_SNAPSHOT || ArtifactBundler.getMemorySnapshot();
   if (!memorySnapshot) {
     // snapshots are disabled or there isn't one yet
     return;

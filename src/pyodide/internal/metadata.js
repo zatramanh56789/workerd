@@ -8,3 +8,10 @@ export const WORKERD_INDEX_URL = PYODIDE_BUCKET.PYODIDE_PACKAGE_BUCKET_URL;
 export const REQUIREMENTS = MetadataReader.getRequirements();
 export const MAIN_MODULE_NAME = MetadataReader.getMainModule();
 export const BUNDLE_MEMORY_SNAPSHOT = MetadataReader.getMemorySnapshot();
+/**
+ * Record the dlopen handles that are needed by the MEMORY and where the dso
+ * metadata is preallocated.
+ */
+export const DSO_METADATA = {
+  loadedLibs: [],
+};
