@@ -152,6 +152,7 @@ private:
 class UtilModule final: public jsg::Object {
 public:
   jsg::Name getResourceTypeInspect(jsg::Lock& js);
+  jsg::Name getResourceTypeWildcard(jsg::Lock& js);
 
   // `getOwnNonIndexProperties()` `filter`s
   static constexpr int ALL_PROPERTIES = jsg::PropertyFilter::ALL_PROPERTIES;
@@ -201,6 +202,7 @@ public:
     JSG_NESTED_TYPE(MIMEParams);
 
     JSG_READONLY_INSTANCE_PROPERTY(kResourceTypeInspect, getResourceTypeInspect);
+    JSG_READONLY_INSTANCE_PROPERTY(kResourceTypeWildcard, getResourceTypeWildcard);
 
     JSG_STATIC_CONSTANT(ALL_PROPERTIES);
     JSG_STATIC_CONSTANT(ONLY_ENUMERABLE);

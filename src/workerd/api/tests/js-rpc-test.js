@@ -1173,3 +1173,15 @@ export let canUseGetPutDelete = {
     assert.strictEqual(await env.MyService.delete(3), 2);
   }
 }
+
+// Test that stubs can still be used after logging them.
+export let logging = {
+  async test(controller, env, ctx) {
+    let counter = new MyCounter(0);
+    let stub = new RpcStub(counter);
+    assert.strictEqual(await stub.increment(1), 1);
+    assert.strictEqual(await stub.increment(1), 2);
+    console.log(stub);
+    assert.strictEqual(await stub.increment(1), 3);
+  }
+}

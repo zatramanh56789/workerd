@@ -181,5 +181,9 @@ jsg::Name UtilModule::getResourceTypeInspect(jsg::Lock& js) {
   return js.newApiSymbol("kResourceTypeInspect"_kj);
 }
 
+jsg::Name UtilModule::getResourceTypeWildcard(jsg::Lock& js) {
+  return js.newApiSymbol("kResourceTypeWildcard"_kj);
+}
+
 
 }  // namespace workerd::api::node

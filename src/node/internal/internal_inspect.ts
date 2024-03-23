@@ -2414,10 +2414,19 @@ function isBuiltinPrototype(proto: unknown) {
   );
 }
 
+function hasWildcardPropertyHandler(value: Record<PropertyKey, unknown>) {
+  return value[internal.kResourceTypeWildcard] === true;
+}
+
 function isEntry(value: unknown): value is [unknown, unknown] {
   return Array.isArray(value) && value.length === 2;
 }
 function maybeGetEntries(value: Record<PropertyKey, unknown>): [unknown, unknown][] | undefined {
+  // If this value defines a wildcard property handler (e.g. `RpcStub`), don't try to call
+  // `entries()` on it. It's unlikely to be an actual `entries()` function, and could do something
+  // completely different.
+  if (hasWildcardPropertyHandler(value)) return;
+
   const entriesFunction = value["entries"];
   if (typeof entriesFunction !== "function") return;
   const entriesIterator: unknown = entriesFunction.call(value);

@@ -27,6 +27,7 @@ export abstract class MIMEParams {
 }
 
 export const kResourceTypeInspect: unique symbol;
+export const kResourceTypeWildcard: unique symbol;
 
 export const ALL_PROPERTIES: 0;
 export const ONLY_ENUMERABLE: 1;

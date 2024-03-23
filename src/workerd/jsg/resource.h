@@ -750,6 +750,12 @@ struct ResourceTypeBuilder {
 
   template <typename Type, typename GetNamedMethod, GetNamedMethod getNamedMethod>
   inline void registerWildcardProperty() {
+    // Mark this prototype as defining a wildcard property. `util.inspect()` will see this and skip
+    // introspection that might cause false positives (e.g. checking for an `entries()` function).
+    auto symbol = v8::Symbol::ForApi(isolate, v8StrIntern(isolate, "kResourceTypeWildcard"_kj));
+    prototype->Set(symbol, v8::True(isolate), static_cast<v8::PropertyAttribute>(
+      v8::PropertyAttribute::ReadOnly | v8::PropertyAttribute::DontEnum));
+
     prototype->SetHandler(
         WildcardPropertyCallbacks<TypeWrapper, Type, GetNamedMethod, getNamedMethod> {});
   }
