@@ -2142,6 +2142,15 @@ void ActorCache::putImpl(
         }
 
         KJ_IF_SOME(c, maybeCountedDelete) {
+          // TODO(now): It's not clear to me that there's any benefit in counting the delete early,
+          // we have to go to storage regardless, and the counted delete promise would not resolve
+          // until we flush successfully anyways. I don't think we should do this, but maybe I just
+          // don't fully understand it?
+          //
+          // TODO(now): Is the implication of the comment below that we're not considering this key
+          // anymore in the CountedDelete's `entries`? It's not clear to me that this is actually
+          // the case, but I need to look into it more.
+          //
           // Overwrote an entry that was in cache, so we can count it now. We also drop the
           // reference to the state to indicate that we are not participating in a counted delete
           // flush.
@@ -2158,6 +2167,13 @@ void ActorCache::putImpl(
           return;
         }
 
+        if (slot->isCountedDelete) {
+          // We are overwriting an entry that is slated for a counted delete operation.
+          // If the delete has already succeeded, but the transaction it was executed within failed,
+          // then this property will indicate that this particular entry does not need to be deleted
+          // along with the other keys in the CountedDelete.
+          slot->overwritingCountedDelete = true;
+        }
         // We don't have to worry about the counted delete since we were already deleted.
         removeEntry(lock, *slot);
         break;
@@ -2423,6 +2439,22 @@ kj::Promise<void> ActorCache::startFlushTransaction() {
     auto& countedDeleteFlush = countedDeleteFlushes.add(CountedDeleteFlush{
       .countedDelete = kj::addRef(*countedDelete),
     });
+    // We might have successfully deleted these entries, but had the broader transaction fail.
+    // In that case, we might have entries that have since been overwritten, and which no longer
+    // need to be scheduled for deletion.
+    kj::Vector<kj::Own<Entry>> entriesToDelete(countedDelete->entries.size());
+    for (auto& entry : countedDelete->entries) {
+      if (entry->overwritingCountedDelete && countedDelete->completedInTransaction) {
+        // Not only is this a retry, but we have since modified the entry with a put().
+        // Since we already have the delete count, we don't need to delete this entry again.
+        continue;
+      }
+      entriesToDelete.add(kj::mv(entry));
+    }
+
+    // Now that we've filtered our entries down to only those that need to be deleted,
+    // we need to overwrite the CountedDelete's `entries`.
+    countedDelete->entries = kj::mv(entriesToDelete);
     for (auto& entry : countedDelete->entries) {
       // A delete() call on this key is waiting to find out if the key existed in storage. Since
       // each delete() call needs to return the count of keys deleted, we must issue
@@ -2946,14 +2978,25 @@ kj::Promise<void> ActorCache::flushImplUsingTxn(
     };
 
     for (auto& promise : promises) {
-      // Reuse `countDeleted` since it's already in a state object anyway.
-      rpcCountedDelete.countedDelete->countDeleted += co_await promise;
+      // TODO(now): Note to self - Are we absolutely, positively certain that we will always come
+      // back here upon a retry? Could we maybe end up in the non-txn flow? Can a (non-txn) counted
+      // delete succeed, but then the flush fail, and cause problems for us?
+      auto count = co_await promise;
+      // We only care about modifying the count if we haven't already successfully obtained the
+      // count in a prior attempt. If this was a retry and we had already received the count
+      // last time, then this attempt is really just a regular delete and we don't need the count.
+      if (!rpcCountedDelete.countedDelete->completedInTransaction) {
+        // TODO(now): Really not a fan of this increment approach, it feels like storage should be
+        // the authoritative source for num deleted count. Will come back to it.
+        // Reuse `countDeleted` since it's already in a state object anyway.
+        rpcCountedDelete.countedDelete->countDeleted += count;
+      }
     }
   };
   for (auto& rpcCountedDelete: rpcCountedDeletes) {
     promises.add(joinCountedDelete(rpcCountedDelete).then([&rpcCountedDelete = rpcCountedDelete](){
-      // We finished all batches!
-      rpcCountedDelete.countedDelete->isFinished = true;
+      // This delete succeeded, but we will need to retry it if the transaction fails.
+      rpcCountedDelete.countedDelete->completedInTransaction = true;
     }));
   }
 
@@ -3015,6 +3058,11 @@ kj::Promise<void> ActorCache::flushImplUsingTxn(
     promises.add(txn.commitRequest(capnp::MessageSize { 4, 0 }).send().ignoreResult());
 
     co_await kj::joinPromises(promises.finish());
+    for (auto& rpcCountedDelete: rpcCountedDeletes) {
+      // Now that the transaction has successfully completed, we can mark all our CountedDeletes
+      // as having completed as well.
+      rpcCountedDelete.countedDelete->isFinished = true;
+    }
   }
 }
 

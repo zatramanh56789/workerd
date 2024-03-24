@@ -1150,7 +1150,9 @@ KJ_TEST("ActorCache flush retry") {
   KJ_ASSERT(KJ_ASSERT_NONNULL(expectCached(test.get("corge"))) == "555");
   KJ_ASSERT(expectCached(test.get("grault")) == nullptr);
 
-  // The second delete had failed, though, so is still outstanding.
+  // Although the counted delete succeeded, the promise will not resolve until our flush succeeds!
+  KJ_ASSERT(!promise1.poll(ws));
+  // The second delete had failed, though; it is still outstanding.
   KJ_ASSERT(!promise2.poll(ws));
 
   // The transaction will be retried, with the updated puts and deletes.
@@ -1163,11 +1165,14 @@ KJ_TEST("ActorCache flush retry") {
     // last time, because it hasn't been further overwritten, and that delete from last time
     // wasn't actually committed.
     mockTxn->expectCall("delete", ws)
+        .withParams(CAPNP(keys = ["quux"]))
+        .thenReturn(CAPNP());  // count ignored because we got it on the first try!
+    mockTxn->expectCall("delete", ws)
         .withParams(CAPNP(keys = ["corge", "grault"]))
         .thenReturn(CAPNP(numDeleted = 2));
     mockTxn->expectCall("delete", ws)
         .withParams(CAPNP(keys = ["baz"]))
-        .thenReturn(CAPNP(numDeleted = 1234));  // count ignored
+        .thenReturn(CAPNP(numDeleted = 1234));
     mockTxn->expectCall("put", ws)
         .withParams(CAPNP(entries = [(key = "foo", value = "123"),
                                      (key = "bar", value = "654"),

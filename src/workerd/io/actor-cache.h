@@ -461,6 +461,12 @@ private:
       }
     }
 
+    // This Entry is part of a CountedDelete, but has since been overwritten via a put().
+    // This is really only useful in determining if we need to retry the deletion of this entry from
+    // storage, since we're interested in the number of deleted records. If we already got the count,
+    // we won't include this entry as part of our retried delete.
+    bool overwritingCountedDelete = false;
+
     bool isStale = false;
     bool flushStarted = false;
 
@@ -518,6 +524,11 @@ private:
 
     // Running count of entries that existed before the delete.
     uint countDeleted = 0;
+
+    // Did this particular counted delete succeed within a transaction? In other words, did we
+    // already get the count? Even if we got the count, we may need to retry if the transaction
+    // itself failed, though we won't need to get the count again.
+    bool completedInTransaction = false;
 
     // Did this particular counted delete succeed? Note that this can be true even if the flush
     // failed on a different batch of operations.
