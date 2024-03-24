@@ -1,4 +1,4 @@
-lockfileVersion: 5.4
+lockfileVersion: 5.4 
 
 specifiers:
   '@bazel/bazelisk': ~1.12.1
